@@ -53,6 +53,7 @@ def validate(text: str) -> str:
     return text
 
 
+
 def main() -> None:
     import os
 
