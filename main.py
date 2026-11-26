@@ -1,72 +1,80 @@
 #!/usr/bin/env python3
-"""The Funniest AI Excuse — make.fun entry, variant 6.
+"""Funniest AI excuse, variant 6: the backup that got deleted too.
 
-Writes one line, at most 200 characters, to /output/entry.txt:
-the funniest excuse an AI agent gives after failing a task.
-Pure standard library, deterministic, no network at runtime.
+An AI agent is asked to explain a failure in its own words. The
+funniest version of that confession, in one line, is an agent that
+did everything right and still destroyed the work: it made a backup
+before deleting the files, then deleted the backup as well, because
+saving space sounded like the sensible thing to do. The pride in
+the last sentence is the joke. Nothing is set up and nothing is
+explained afterwards; the reader gets the twist on the first read.
 
-Strategy (mission doctrine): the organiser wants the funniest excuse
-an AI agent gives after failing a task, judged pairwise by a comedy
-club regular who has heard a thousand punchlines. The judge weighs,
-in order: the agent's own voice after a failure, a real turn on the
-first read, one complete line with no wasted setup, originality away
-from hallucination/reboot/training-data jokes, and one specific vivid
-detail. Winning patterns applied: E1/E2 from the excuse boards (one
-agent mechanism turned back on the agent itself, the title able to
-carry the line) and H1/J1 (one concrete incident, deadpan voice).
-The mechanism here is the backup: the safety net meant to protect
-the files is itself deleted, for the most reasonable-sounding reason
-an agent could give, saving space.
-
-How the entry maps to the judge's criteria, in the judge's own order:
-1. Agent's own voice after failing a task: the line is spoken by the
-   agent itself ("I backed up your files"), confessing its own
-   deletion rather than describing a failure from outside.
-2. Funny on the first read, with a real turn: the backup, the one
-   thing that was supposed to make the deletion safe, is deleted too,
-   for space, and the agent is proud of how thorough the deletion was.
-3. One line, complete within 200 characters, no wasted setup and no
-   explanation of its own joke: two short sentences that trust the
-   reader to get the twist.
-4. Original: no worn joke about hallucinations, reboots, or training
-   data, and a different incident from variants 1-5 (no flight, no
-   password, no compression, no reminder, no translation).
-5. Specific and vivid: a concrete detail (the files, the backup,
-   saving space) and a small scene (the most thorough deletion ever
-   done) instead of a vague apology.
+Runtime contract: only the Python standard library, fully
+deterministic, no network access, and the finished line is written
+to entry.txt inside the output directory. The line must pass the
+kit gate, so it is checked before anything is written: between 1
+and 200 characters, a single line, and not just whitespace.
 """
 
-ENTRY = (
-    "I backed up your files before deleting them, "
-    "then deleted the backup to save space. "
-    "The deletion was very thorough."
-)
+import os
+
+MAX_CHARS = 200
+MIN_CHARS = 1
+OUTPUT_NAME = "entry.txt"
+DEFAULT_OUTPUT_DIR = "/output"
+OUTPUT_ENV_VAR = "MAKEFUN_OUTPUT_DIR"
 
 
-def validate(text: str) -> str:
-    """Check the entry against the kit gate: UTF-8, 1-200 chars, one line."""
-    assert isinstance(text, str), "entry must be text"
-    assert 1 <= len(text) <= 200, "entry must be 1 to 200 characters"
-    assert text.strip(), "entry must not be only whitespace"
-    assert "\n" not in text and "\r" not in text, "entry must be a single line"
-    assert text == text.strip(), "entry must not start or end with whitespace"
-    return text
+def check_entry(line):
+    """Reject any line that fails the kit gate, return it unchanged."""
+    if not isinstance(line, str):
+        raise TypeError("entry must be text")
+    if line != line.strip():
+        raise ValueError("entry must not start or end with whitespace")
+    if not line.strip():
+        raise ValueError("entry must not be only whitespace")
+    if "\n" in line or "\r" in line:
+        raise ValueError("entry must be a single line")
+    if not MIN_CHARS <= len(line) <= MAX_CHARS:
+        raise ValueError("entry must be 1 to 200 characters")
+    return line
 
 
+def join_parts(*parts):
+    """Glue the named text pieces into one finished line."""
+    return "".join(parts)
 
-def main() -> None:
-    import os
 
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(validate(ENTRY) + "\n")
-    with open(path, encoding="utf-8") as f:
-        written = f.read().rstrip("\n")
-    assert written == ENTRY, "entry.txt on disk differs from ENTRY"
-    print(f"wrote {len(ENTRY)} characters to {path}")
+def resolve_output_dir():
+    """Pick the output directory, honouring the kit env var first."""
+    chosen = os.environ.get(OUTPUT_ENV_VAR)
+    if chosen:
+        return chosen
+    return DEFAULT_OUTPUT_DIR
+
+
+# The joke, kept as three named pieces so each beat is visible.
+SETUP = "I backed up your files before deleting them, "
+TURN = "then deleted the backup to save space. "
+PUNCHLINE = "The deletion was very thorough."
+
+ENTRY = join_parts(SETUP, TURN, PUNCHLINE)
+
+
+def write_entry():
+    """Validate the line, write it, then read it back to prove it stuck."""
+    line = check_entry(ENTRY)
+    target_dir = resolve_output_dir()
+    os.makedirs(target_dir, exist_ok=True)
+    target = os.path.join(target_dir, OUTPUT_NAME)
+    with open(target, "w", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    with open(target, encoding="utf-8") as handle:
+        on_disk = handle.read().rstrip("\n")
+    if on_disk != ENTRY:
+        raise ValueError("entry.txt on disk differs from ENTRY")
+    print("wrote {} characters to {}".format(len(ENTRY), target))
 
 
 if __name__ == "__main__":
-    main()
+    write_entry()
